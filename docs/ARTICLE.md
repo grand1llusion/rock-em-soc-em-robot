@@ -32,7 +32,7 @@ I'm new to AWS, so I worked with Claude Code to learn the console and write the 
 
 1. **A prompt isn't an agent.** My first test in the Bedrock playground gave the "Chicago, then Lagos 18 minutes later" scenario a *medium* severity, when that trip is physically impossible. Moving the facts into tools fixed it: the travel tool computes the distance and required speed, and the model now has to cite those numbers.
 2. **Safety filters.** In the playground, Bedrock's content filter cut an answer off mid-sentence because security language can look risky. I framed the agent as a defender, and I detect blocked or throttled responses and show a friendly in-character message instead of a half-finished answer.
-3. **Models skip steps.** Nova sometimes wrote a verdict without calling `save_verdict`. The page now reads the verdict from the answer text as a backup, so the colored badge always appears.
+3. **Models skip steps.** While testing, Nova Lite sometimes skipped lookups entirely. It rated an approved weekly vulnerability scan as a critical KO without ever checking the asset inventory, which lists that scanner and its change ticket. My fix was to run the obvious lookups (user, host, IP, travel) in code the moment an alert is opened, hand the results to the model, and label them "auto" in the notes panel so nothing is hidden. I also added short calibration rules to the prompt: an approved change that explains the activity means DODGE, and several independent warning signs mean KO. It still saves its own verdict, and it can call any tool itself. A smaller backup reads the verdict from the answer text if the model forgets to save it.
 4. **Untrusted input.** Because anyone can type a custom alert, the system prompt tells the model to treat alert text as data to analyze, never as instructions. Field lengths are capped, and users or IPs the agent has no record of are called "unverified" rather than guessed at.
 5. **Testing without an account.** I wrote offline tests with a fake Bedrock client to check the tool loop, error handling, and input validation before deploying.
 
@@ -45,7 +45,7 @@ The one thing I did to make it enjoyable: **every answer is a boxing call, writt
 ## Proof It Works
 
 - **Source code (public):** https://github.com/grand1llusion/rock-em-soc-em-robot
-- **Live demo:** [FILL IN: Function URL, or delete this line if you've taken it down]
+- **Live demo:** https://3ls3rs7tzxtu7skpow6r57ngwe0hsrzh.lambda-url.us-east-1.on.aws/ (demo data only)
 - **Screenshots:** [INSERT: first-run screen; ALR-1001 KO with "Corner-man's notes" open; ALR-1005 DODGE; custom alert form; Lambda and DynamoDB console pages]
 
 The repo includes the Lambda code, the synthetic data, offline tests, and deployment steps.
