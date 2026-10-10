@@ -1,6 +1,6 @@
 # Rock 'Em SOC 'Em Robot: an AI security analyst that explains itself in plain English
 
-**Tag:** agent
+**Tag:** agents
 
 ## What This Agent Does
 
