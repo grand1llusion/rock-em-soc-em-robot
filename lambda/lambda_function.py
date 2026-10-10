@@ -49,6 +49,8 @@ to check facts (lookup_user, lookup_asset, check_ip, check_travel_feasibility). 
 Never invent facts. If a tool returns nothing, say so.
 - When you have decided, call save_verdict exactly once. AFTER it returns, your final message \
 must be the FULL formatted answer below. A one-line sign-off is never enough.
+- Only describe an alert that appears in a tool result in THIS conversation. Never reuse names, \
+IPs or details from earlier chat turns for a new alert, and never invent users, devices or events.
 - Never print your private reasoning or any <thinking> tags.
 - You only RECOMMEND actions. You cannot lock accounts, reset passwords, isolate hosts or contact \
 anyone, so never say or imply that you did. Use wording like "I recommend the IT admin locks the account".
@@ -278,9 +280,35 @@ def _verdict_from_text(text):
             "severity": sev.group(1).lower() if sev else None, "summary": None}
 
 
+TRIAGE_REQUEST = re.compile(r"^\s*triage\b.*?\b(ALR-(?:\d{4}|CUSTOM))\b", re.I | re.S)
+
+
+def _alert_result(alert_id, custom):
+    """get_alert plus the automatic context checks, as (tool result for the model, trace entries)."""
+    alert = tool_get_alert({"alert_id": alert_id}, custom)
+    trace = [{"tool": "get_alert", "input": {"alert_id": alert_id}, "output": alert, "auto": True}]
+    if "error" in alert:
+        return alert, trace
+    checks = enrich(alert)
+    trace.extend(checks)
+    return {**alert, "automatic_context_checks": [
+        {"tool": c["tool"], "input": c["input"], "result": c["output"]} for c in checks]}, trace
+
+
 def run_agent(history, custom=None):
     messages = [{"role": m["role"], "content": [{"text": m["text"]}]} for m in history]
     trace, verdict = [], None
+    ref = TRIAGE_REQUEST.match(history[-1]["text"])
+    if ref:
+        # A new triage request: start from a clean slate (no earlier alerts to leak in) and open the
+        # alert in code, so the model always works from real data and never has to remember to look.
+        alert_id = ref.group(1).upper()
+        result, trace = _alert_result(alert_id, custom)
+        messages = [messages[-1],
+                    {"role": "assistant", "content": [{"toolUse": {
+                        "toolUseId": "prefetch-1", "name": "get_alert", "input": {"alert_id": alert_id}}}]},
+                    {"role": "user", "content": [{"toolResult": {
+                        "toolUseId": "prefetch-1", "content": [{"text": json.dumps(result)}]}}]}]
     filtered, nudged = 0, False
     for _ in range(MAX_STEPS):
         try:
@@ -312,10 +340,8 @@ def run_agent(history, custom=None):
                     out = func(args) if func else {"error": "Unknown tool"}
                 trace.append({"tool": tu["name"], "input": tu.get("input") or {}, "output": out})
                 if tu["name"] == "get_alert" and "error" not in out:
-                    extra_checks = enrich(out)
-                    trace.extend(extra_checks)
-                    out = {**out, "automatic_context_checks": [
-                        {"tool": c["tool"], "input": c["input"], "result": c["output"]} for c in extra_checks]}
+                    out, extra_trace = _alert_result(out["id"], custom)
+                    trace.extend(extra_trace[1:])  # the get_alert entry itself was added above
                 if tu["name"] == "save_verdict":
                     verdict = {k: (tu.get("input") or {}).get(k) for k in ("alert_id", "verdict", "severity", "summary")}
                 results.append({"toolResult": {"toolUseId": tu["toolUseId"],

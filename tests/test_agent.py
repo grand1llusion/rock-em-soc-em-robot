@@ -2,6 +2,7 @@
 
 Run:  python -m unittest discover -s tests -v
 """
+import copy
 import json
 import os
 import sys
@@ -28,7 +29,7 @@ class FakeBedrock:
         self.responses, self.calls = list(responses), []
 
     def converse(self, **kw):
-        self.calls.append(kw)
+        self.calls.append(copy.deepcopy(kw))  # snapshot: the app keeps appending to its message list
         r = self.responses.pop(0)
         if isinstance(r, Exception):
             raise r
@@ -70,28 +71,48 @@ class ToolTests(unittest.TestCase):
 class AgentTests(unittest.TestCase):
     def test_tool_loop_returns_verdict_and_trace(self):
         fake = FakeBedrock([
-            tool_use("get_alert", {"alert_id": "ALR-1001"}, "a"),
             tool_use("save_verdict", {"alert_id": "ALR-1001", "verdict": "KO", "severity": "high",
                                       "summary": "Impossible travel"}, "b"),
             text("Ding ding! VERDICT: KO\nWHY I THINK SO: x"),
         ])
         with mock.patch.object(lf, "bedrock", fake), \
              mock.patch.object(lf, "_cases_table", side_effect=RuntimeError("offline")):
-            res = post([{"role": "user", "text": "Triage alert ALR-1001"}])
+            res = post([{"role": "user", "text": "Triage alert ALR-1001 for me."}])
         body = json.loads(res["body"])
         self.assertEqual(res["statusCode"], 200)
         self.assertEqual(body["verdict"]["verdict"], "KO")
         self.assertEqual([t["tool"] for t in body["trace"]],
                          ["get_alert", "lookup_user", "check_ip", "check_travel_feasibility", "save_verdict"])
-        self.assertTrue(all(t.get("auto") for t in body["trace"][1:4]))
-        # the model receives the auto checks inside the get_alert tool result
-        fed_back = fake.calls[-1]["messages"][2]["content"][0]["toolResult"]["content"][0]["text"]  # result of get_alert
-        self.assertIn("automatic_context_checks", fed_back)
-        self.assertIn("physically_possible", fed_back)
+        self.assertTrue(all(t.get("auto") for t in body["trace"][:4]))
         self.assertIn("KO", body["reply"])
-        # the tool result was fed back to the model as a toolResult block
-        last_user = fake.calls[1]["messages"][-1]
-        self.assertIn("toolResult", last_user["content"][0])
+        # the model's very first call already contains the alert and the automatic checks
+        first = fake.calls[0]["messages"]
+        self.assertEqual([m["role"] for m in first], ["user", "assistant", "user"])
+        fed = first[2]["content"][0]["toolResult"]["content"][0]["text"]
+        self.assertIn("automatic_context_checks", fed)
+        self.assertIn("physically_possible", fed)
+
+    def test_triage_request_starts_clean_and_followups_keep_history(self):
+        history = [{"role": "user", "text": "Triage alert ALR-1001 for me."},
+                   {"role": "assistant", "text": "VERDICT: KO jsmith Lagos"},
+                   {"role": "user", "text": "Triage alert ALR-1004 for me."}]
+        fake = FakeBedrock([text("VERDICT: SPLIT_DECISION\nWHY I THINK SO: bucket")])
+        with mock.patch.object(lf, "bedrock", fake):
+            post(history)
+        sent = json.dumps(fake.calls[0]["messages"])
+        self.assertIn("acme-marketing-assets", sent)
+        self.assertNotIn("jsmith", sent)  # nothing from the earlier alert leaks in
+        follow = history + [{"role": "assistant", "text": "ok"}, {"role": "user", "text": "Explain that for my boss"}]
+        fake2 = FakeBedrock([text("plain English")])
+        with mock.patch.object(lf, "bedrock", fake2):
+            post(follow)
+        self.assertEqual(len(fake2.calls[0]["messages"]), 5)  # full history kept, no prefetch
+
+    def test_unknown_alert_reference_gives_error_result_not_invention(self):
+        fake = FakeBedrock([text("I can't find that alert.")])
+        with mock.patch.object(lf, "bedrock", fake):
+            body = json.loads(post([{"role": "user", "text": "Triage alert ALR-9999 for me."}])["body"])
+        self.assertIn("error", body["trace"][0]["output"])
 
     def test_verdict_falls_back_to_answer_text(self):
         fake = FakeBedrock([text("Ding!\nVERDICT: SPLIT DECISION   SEVERITY: Medium\nWHAT HAPPENED: ...")])
