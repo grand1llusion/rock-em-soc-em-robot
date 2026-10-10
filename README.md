@@ -20,6 +20,21 @@ agent called, so you can verify its reasoning.
 > **All data is AI-generated test data.** The company, people, hosts and alerts are fictional.
 > IPs come from documentation ranges. Used only to demonstrate the agent's functionality.
 
+## Screenshots
+
+*All alerts, people and systems shown are AI-generated test data.*
+
+| | |
+|---|---|
+| **First run**: friendly welcome, one-click alerts | **KO**: impossible travel, with the "Corner-man's notes" showing every check |
+| ![First run](images/01-first-run.png) | ![ALR-1001 KO](images/02-alr-1001-ko-with-notes.png) |
+| **SPLIT DECISION**: a human needs to check one thing | **DODGE**: approved scanner, cites change ticket CHG-2231 |
+| ![ALR-1003 split decision](images/03-alr-1003-split-decision.png) | ![ALR-1005 dodge](images/04-alr-1005-dodge.png) |
+| **Build your own alert** (ghost-text examples in every field) | **Custom alert result** |
+| ![Custom alert form](images/05-custom-alert-form.png) | ![Custom alert result](images/06-custom-alert-result-ko.png) |
+| **Case log in DynamoDB**: the agent saves its own verdicts | **Deployed on AWS Lambda** with a Function URL |
+| ![DynamoDB case log](images/07-dynamodb-case-log.png) | ![Lambda overview](images/08-lambda-overview-function-url.png) |
+
 ## Architecture
 
 ```
