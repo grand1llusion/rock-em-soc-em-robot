@@ -36,6 +36,8 @@ I'm new to AWS, so I worked with Claude Code to learn the console and write the 
 4. **Untrusted input.** Because anyone can type a custom alert, the system prompt tells the model to treat alert text as data to analyze, never as instructions. Field lengths are capped, and users or IPs the agent has no record of are called "unverified" rather than guessed at.
 5. **Testing without an account.** I wrote offline tests with a fake Bedrock client to check the tool loop, error handling, and input validation before deploying.
 
+**A known limitation:** the model is a language model, so borderline alerts can get a different call from run to run. For example, the public storage bucket alert came back as KO on one run and SPLIT DECISION on another, because the exposure is real but a person may still want to check the folder first. The clear-cut cases, like the impossible travel and the approved scanner, stayed consistent in my testing. That's why the "Corner-man's notes" panel matters: the evidence is always visible, so a human can check the reasoning and make the final decision.
+
 ## The Experience
 
 The one thing I did to make it enjoyable: **every answer is a boxing call, written in plain English.** Security tools usually say things like "anomalous authentication event, risk score 78." The robot says *KO: ESCALATE NOW*, then explains what happened as if talking to a manager, and a "Corner-man's notes" panel shows every tool it ran, so you can check its work. The boxing theme gives a nervous beginner a simple three-way choice, and the first-run screen has one-click alerts, suggested follow-up questions ("Explain that for my boss"), and ghost-text examples in the custom alert form.
