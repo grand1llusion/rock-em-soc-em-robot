@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rock 'Em SOC 'Em Robot</title>
+<style>
+  :root {
+    --bg: #f6f3ee; --panel: #ffffff; --ink: #1d1b19; --muted: #6b655d; --line: #e0d9cf;
+    --red: #c8312b; --blue: #1f5fbf; --gold: #b7791f;
+    --ko: #c8312b; --split: #b7791f; --dodge: #2f855a;
+    --bubble-user: #1f5fbf; --bubble-user-ink: #fff; --bubble-bot: #fbf9f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14110f; --panel: #1e1a17; --ink: #f1ece6; --muted: #a39a8f; --line: #3a332d;
+      --red: #ef5b54; --blue: #6ea2f0; --gold: #e0a64a; --ko: #ef5b54; --split: #e0a64a; --dodge: #5cc08e;
+      --bubble-user: #2c5fb0; --bubble-bot: #26211d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 14px 16px; border-bottom: 4px solid var(--red);
+    background: var(--panel); display: flex; align-items: center; gap: 12px; }
+  header .logo { font-size: 34px; line-height: 1; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .02em; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .notice { background: var(--panel); border-bottom: 1px solid var(--line); color: var(--muted);
+    font-size: 12.5px; padding: 6px 16px; text-align: center; }
+  main { max-width: 1040px; margin: 0 auto; padding: 16px; display: grid; gap: 16px;
+    grid-template-columns: 300px 1fr; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .alert-btn { width: 100%; text-align: left; background: transparent; color: inherit; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font: inherit; }
+  .alert-btn:hover, .alert-btn:focus-visible { border-color: var(--blue); outline: none; box-shadow: 0 0 0 2px var(--blue); }
+  .alert-btn b { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .alert-btn span { font-size: 14px; }
+  #chat { display: flex; flex-direction: column; min-height: 62vh; }
+  #log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; max-height: 66vh; }
+  .msg { max-width: 92%; padding: 10px 14px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--bubble-user); color: var(--bubble-user-ink); border-bottom-right-radius: 4px; }
+  .msg.bot { align-self: flex-start; background: var(--bubble-bot); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .msg.err { border-color: var(--red); }
+  .verdict { display: inline-block; font-weight: 800; letter-spacing: .06em; color: #fff; border-radius: 8px;
+    padding: 4px 12px; margin-bottom: 8px; font-size: 14px; }
+  .verdict.KO { background: var(--ko); } .verdict.SPLIT_DECISION { background: var(--split); } .verdict.DODGE { background: var(--dodge); }
+  details { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  details summary { cursor: pointer; }
+  details code { display: block; white-space: pre-wrap; font: 12px/1.4 ui-monospace, Menlo, monospace; margin: 4px 0; }
+  .typing { color: var(--muted); font-style: italic; }
+  form { display: flex; gap: 8px; margin-top: 8px; }
+  input[type=text] { flex: 1; font: inherit; padding: 10px 12px; border-radius: 10px; color: var(--ink);
+    border: 1px solid var(--line); background: var(--bg); }
+  button.send { font: inherit; font-weight: 700; padding: 10px 18px; border-radius: 10px; border: 0;
+    background: var(--red); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 99px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; color: var(--muted); }
+  .chip:hover { color: var(--ink); border-color: var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true">🤖🥊</div>
+  <div>
+    <h1>Rock 'Em SOC 'Em Robot</h1>
+    <p>Your corner-man for security alerts: KO the real threats, dodge the noise.</p>
+  </div>
+</header>
+<div class="notice">Demo data only: every alert, person and system here is AI-generated test data for a fictional company.</div>
+<main>
+  <aside class="card">
+    <h2>Today's fight card</h2>
+    <div id="alerts"><span class="typing">Loading the queue…</span></div>
+  </aside>
+  <section class="card" id="chat">
+    <h2>Ring</h2>
+    <div id="log" aria-live="polite"></div>
+    <div class="chips" id="chips"></div>
+    <form id="form">
+      <input type="text" id="input" autocomplete="off" maxlength="1500"
+             placeholder="Pick an alert on the left, or ask me anything about it…" aria-label="Message">
+      <button class="send" id="send" type="submit">Send</button>
+    </form>
+  </section>
+</main>
+<script>
+(function () {
+  var log = document.getElementById('log'), input = document.getElementById('input');
+  var send = document.getElementById('send'), form = document.getElementById('form');
+  var history = [], busy = false;
+  var LABEL = { KO: 'KO: ESCALATE NOW', SPLIT_DECISION: 'SPLIT DECISION: HUMAN CHECK', DODGE: 'DODGE: ALL CLEAR' };
+
+  function store(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) {} return null; }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+  function scroll() { log.scrollTop = log.scrollHeight; }
+  function headers() { var h = { 'Content-Type': 'application/json' }, c = store('code'); if (c) h['x-access-code'] = c; return h; }
+
+  function addBot(text, extra) {
+    var m = el('div', 'msg bot' + (extra && extra.error ? ' err' : ''));
+    if (extra && extra.verdict && extra.verdict.verdict) {
+      var v = el('div', 'verdict ' + extra.verdict.verdict, LABEL[extra.verdict.verdict] || extra.verdict.verdict);
+      if (extra.verdict.severity) v.textContent += '  ·  ' + extra.verdict.severity.toUpperCase();
+      m.appendChild(v); m.appendChild(document.createElement('br'));
+    }
+    m.appendChild(document.createTextNode(text));
+    if (extra && extra.trace && extra.trace.length) {
+      var d = el('details'), s = el('summary', '', 'Corner-man’s notes: what I checked (' + extra.trace.length + ' tool calls' + (extra.seconds ? ', ' + extra.seconds + 's' : '') + ')');
+      d.appendChild(s);
+      extra.trace.forEach(function (t) {
+        d.appendChild(el('code', '', t.tool + '(' + JSON.stringify(t.input) + ')\n→ ' + JSON.stringify(t.output)));
+      });
+      m.appendChild(d);
+    }
+    log.appendChild(m); scroll();
+  }
+  function addUser(text) { log.appendChild(el('div', 'msg user', text)); scroll(); }
+
+  function ask(text) {
+    if (busy || !text.trim()) return;
+    busy = true; send.disabled = true; input.value = '';
+    addUser(text); history.push({ role: 'user', text: text });
+    var typing = el('div', 'msg bot typing', '🥊 Lacing up the gloves…'); log.appendChild(typing); scroll();
+    fetch('chat', { method: 'POST', headers: headers(), body: JSON.stringify({ messages: history }) })
+      .then(function (r) {
+        if (r.status === 401) { throw { code: true }; }
+        return r.json();
+      })
+      .then(function (data) {
+        typing.remove();
+        addBot(data.reply || 'The bell rang but I had nothing to say. Try again?', data);
+        if (data.reply && !data.error) history.push({ role: 'assistant', text: data.reply });
+        else history.pop();
+      })
+      .catch(function (e) {
+        typing.remove(); history.pop();
+        if (e && e.code) {
+          var c = prompt('This ring is invite-only. Enter the access code:');
+          if (c) { store('code', c); busy = false; send.disabled = false; return ask(text); }
+          addBot('No access code, no fight. Reload the page to try again.', { error: true });
+        } else addBot('I lost my connection to the ring. Check your network and try again.', { error: true });
+      })
+      .then(function () { busy = false; send.disabled = false; input.focus(); });
+  }
+
+  form.addEventListener('submit', function (e) { e.preventDefault(); ask(input.value); });
+
+  function fightCard(alerts) {
+    var box = document.getElementById('alerts'); box.textContent = '';
+    alerts.forEach(function (a) {
+      var b = el('button', 'alert-btn'); b.type = 'button';
+      b.appendChild(el('b', '', a.id + ' · ' + a.source + ' · ' + a.time));
+      b.appendChild(el('span', '', a.title));
+      b.addEventListener('click', function () { ask('Triage alert ' + a.id + ' for me.'); });
+      box.appendChild(b);
+    });
+    var all = el('button', 'alert-btn'); all.type = 'button';
+    all.appendChild(el('span', '', '🥊 Which alert should I look at first?'));
+    all.addEventListener('click', function () { ask('Look at the whole queue and tell me which alert to handle first, and why. Keep it brief.'); });
+    box.appendChild(all);
+  }
+
+  function welcome() {
+    addBot("Ding ding! I'm Rock 'Em SOC 'Em Robot, your corner-man for security alerts.\n\n" +
+      "Pick a fight from the card on the left and I'll check the facts (who the user is, where the traffic came from, " +
+      "whether it's an approved change) and give you a call in plain English:\n\n" +
+      "KO = real threat, escalate.  SPLIT DECISION = a human needs to check one thing.  DODGE = all clear.\n\n" +
+      "Tip: ask me follow-ups like “explain that for my boss” or “what would you do first?”");
+    var chips = document.getElementById('chips');
+    ['Explain that for my boss', 'What should I do first?', 'What could go wrong if I ignore it?'].forEach(function (t) {
+      var c = el('button', 'chip', t); c.type = 'button';
+      c.addEventListener('click', function () { ask(t); }); chips.appendChild(c);
+    });
+  }
+
+  welcome();
+  fetch('alerts', { headers: headers() }).then(function (r) {
+    if (r.status === 401) throw 0; return r.json();
+  }).then(function (d) { fightCard(d.alerts); })
+    .catch(function () { document.getElementById('alerts').textContent = 'Queue unavailable until you send your first message.'; });
+})();
+</script>
+</body>
+</html>
