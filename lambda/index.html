@@ -56,6 +56,20 @@
   button.send { font: inherit; font-weight: 700; padding: 10px 18px; border-radius: 10px; border: 0;
     background: var(--red); color: #fff; cursor: pointer; }
   button:disabled { opacity: .55; cursor: wait; }
+  dialog { width: min(560px, 94vw); border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+    background: var(--panel); color: var(--ink); }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog form { display: block; margin: 0; }
+  dialog h3 { margin: 0 0 4px; } dialog p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  dialog label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 3px; }
+  dialog input, dialog select, dialog textarea { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px;
+    color: var(--ink); background: var(--bg); border: 1px solid var(--line); }
+  dialog input::placeholder, dialog textarea::placeholder { color: var(--muted); opacity: .75; font-style: italic; }
+  dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  dialog .actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 14px; }
+  dialog .link { background: none; border: 0; color: var(--blue); cursor: pointer; font: inherit; margin-right: auto; padding: 0; }
+  dialog .cancel { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); cursor: pointer; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .chip { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 99px; cursor: pointer;
     border: 1px solid var(--line); background: transparent; color: var(--muted); }
@@ -87,11 +101,38 @@
     </form>
   </section>
 </main>
+<dialog id="custom">
+  <form method="dialog" id="customForm">
+    <h3>✍️ Build your own alert</h3>
+    <p class="hint">Describe something suspicious and I'll triage it. Please use made-up data only: no real names, passwords or company info.
+      I know the demo users (jsmith, mgarcia, rpatel, dthompson, svc-backup) and a few IPs (198.51.100.77, 203.0.113.9, 203.0.113.50); anything else I'll flag as unverified.</p>
+    <label for="c-title">Alert title *</label>
+    <input id="c-title" maxlength="120" required placeholder="e.g. Employee signed in from two countries within minutes">
+    <div class="row">
+      <div><label for="c-source">Where did it come from?</label>
+        <select id="c-source"><option>Identity provider (SSO)</option><option>Email security</option><option>Firewall / network</option>
+          <option>Endpoint protection (EDR)</option><option>Cloud configuration monitor</option><option>Other</option></select></div>
+      <div><label for="c-time">When?</label><input id="c-time" maxlength="60" placeholder="e.g. Mon 14:05 CT"></div>
+    </div>
+    <div class="row">
+      <div><label for="c-user">Username</label><input id="c-user" maxlength="40" placeholder="e.g. jsmith"></div>
+      <div><label for="c-ip">IP address</label><input id="c-ip" maxlength="45" placeholder="e.g. 203.0.113.9"></div>
+    </div>
+    <label for="c-details">What happened? *</label>
+    <textarea id="c-details" rows="5" maxlength="1200" required
+      placeholder="e.g. jsmith signed in from Chicago at 09:02, then from Mumbai at 09:15 on a new device. The second sign-in approved an MFA push right away."></textarea>
+    <div class="actions">
+      <button type="button" class="link" id="c-example">Fill with an example</button>
+      <button type="button" class="cancel" id="c-cancel">Cancel</button>
+      <button type="submit" class="send">Triage it</button>
+    </div>
+  </form>
+</dialog>
 <script>
 (function () {
   var log = document.getElementById('log'), input = document.getElementById('input');
   var send = document.getElementById('send'), form = document.getElementById('form');
-  var history = [], busy = false;
+  var history = [], busy = false, customAlert = null;
   var LABEL = { KO: 'KO: ESCALATE NOW', SPLIT_DECISION: 'SPLIT DECISION: HUMAN CHECK', DODGE: 'DODGE: ALL CLEAR' };
 
   function store(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) {} return null; }
@@ -124,7 +165,7 @@
     busy = true; send.disabled = true; input.value = '';
     addUser(text); history.push({ role: 'user', text: text });
     var typing = el('div', 'msg bot typing', '🥊 Lacing up the gloves…'); log.appendChild(typing); scroll();
-    fetch('chat', { method: 'POST', headers: headers(), body: JSON.stringify({ messages: history }) })
+    fetch('chat', { method: 'POST', headers: headers(), body: JSON.stringify({ messages: history, custom_alert: customAlert }) })
       .then(function (r) {
         if (r.status === 401) { throw { code: true }; }
         return r.json();
@@ -161,7 +202,32 @@
     all.appendChild(el('span', '', '🥊 Which alert should I look at first?'));
     all.addEventListener('click', function () { ask('Look at the whole queue and tell me which alert to handle first, and why. Keep it brief.'); });
     box.appendChild(all);
+    var mine = el('button', 'alert-btn'); mine.type = 'button';
+    mine.appendChild(el('b', '', 'YOUR TURN'));
+    mine.appendChild(el('span', '', '✍️ Build your own alert'));
+    mine.addEventListener('click', function () { dlg.showModal(); document.getElementById('c-title').focus(); });
+    box.appendChild(mine);
   }
+
+  var dlg = document.getElementById('custom');
+  function field(id) { return document.getElementById(id); }
+  field('c-cancel').addEventListener('click', function () { dlg.close(); });
+  field('c-example').addEventListener('click', function () {
+    field('c-title').value = 'Employee signed in from two countries within minutes';
+    field('c-source').value = 'Identity provider (SSO)';
+    field('c-time').value = 'Mon 14:05 CT';
+    field('c-user').value = 'mgarcia';
+    field('c-ip').value = '198.51.100.77';
+    field('c-details').value = 'mgarcia signed in from Austin at 14:05 CT, then from Lagos, Nigeria at 14:20 CT using a new Windows device. The second sign-in approved an MFA push within 30 seconds.';
+  });
+  field('customForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy) return;
+    customAlert = { title: field('c-title').value, source: field('c-source').value, time: field('c-time').value,
+      username: field('c-user').value, ip: field('c-ip').value, details: field('c-details').value };
+    dlg.close();
+    ask('Triage my custom alert ALR-CUSTOM: ' + customAlert.title);
+  });
 
   function welcome() {
     addBot("Ding ding! I'm Rock 'Em SOC 'Em Robot, your corner-man for security alerts.\n\n" +
