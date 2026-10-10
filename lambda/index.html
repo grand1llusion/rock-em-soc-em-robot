@@ -152,7 +152,7 @@
       var d = el('details'), s = el('summary', '', 'Corner-man’s notes: what I checked (' + extra.trace.length + ' tool calls' + (extra.seconds ? ', ' + extra.seconds + 's' : '') + ')');
       d.appendChild(s);
       extra.trace.forEach(function (t) {
-        d.appendChild(el('code', '', t.tool + '(' + JSON.stringify(t.input) + ')\n→ ' + JSON.stringify(t.output)));
+        d.appendChild(el('code', '', (t.auto ? '⚙ auto · ' : '') + t.tool + '(' + JSON.stringify(t.input) + ')\n→ ' + JSON.stringify(t.output)));
       });
       m.appendChild(d);
     }

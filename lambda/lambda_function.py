@@ -7,6 +7,7 @@ One AWS Lambda function (behind a Function URL) that:
 
 All alert data is AI-generated test data (see data.py).
 """
+import ipaddress
 import json
 import math
 import os
@@ -54,6 +55,18 @@ For a user, host or IP that your tools do not know, say it could not be verified
 does or does not tell you; do not guess.
 - If the user asks about anything that is not security triage for this company, \
 politely steer back to the alert queue in one sentence.
+
+HOW TO WEIGH THE EVIDENCE
+- get_alert also returns "automatic_context_checks": lookups already run for you (user, host, IP, \
+travel). Read them carefully and cite them. If a check says "not found", say it is unverified.
+- If a user or asset record shows an approved change or scheduled job that explains the activity \
+(matching ticket, time window and owner), the call is DODGE; mention the ticket number.
+- Several independent warning signs together (impossible travel, malicious or suspicious IP, new \
+device, credentials possibly entered on a phishing page, a login right after a brute-force burst) \
+mean KO. Do not downgrade to SPLIT_DECISION just to be cautious.
+- Use SPLIT_DECISION only when there is one ambiguous fact a human can resolve quickly.
+- Severity reflects business harm if real: critical = active compromise of a privileged or \
+financial account or system; high = likely compromise; medium = exposure that needs review; low = minor.
 
 VERDICTS (use these exact words)
 - KO: a real threat, escalate now.
@@ -167,6 +180,43 @@ def tool_check_travel(args):
                     "A VPN or proxy can fake location, but then the 'travel' is not real either."}
 
 
+PRIVATE_NETS = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+
+
+def enrich(alert):
+    """Automatic context checks (like a SIEM enrichment step) run when an alert is opened.
+
+    Nova Lite does not always call lookup tools on its own, so the obvious ones are run in code
+    and shown in the trace as 'auto'. The model can still call any tool itself afterwards.
+    """
+    ent = alert.get("entities", {})
+    steps = []
+
+    def run(name, args, fn):
+        steps.append({"tool": name, "input": args, "output": fn(args), "auto": True})
+
+    if ent.get("user"):
+        run("lookup_user", {"username": ent["user"]}, tool_lookup_user)
+    ip = ent.get("ip")
+    if ip:
+        try:  # RFC 1918 ranges only: documentation ranges like 203.0.113.0/24 count as external here
+            addr = ipaddress.ip_address(ip)
+            internal = any(addr in ipaddress.ip_network(n) for n in PRIVATE_NETS)
+        except ValueError:
+            internal = False
+        if internal:
+            run("lookup_asset", {"name_or_ip": ip}, tool_lookup_asset)
+        else:
+            run("check_ip", {"ip": ip}, tool_check_ip)
+    for key in ("host", "asset"):
+        if ent.get(key):
+            run("lookup_asset", {"name_or_ip": ent[key]}, tool_lookup_asset)
+    if ent.get("from_city") and ent.get("to_city") and ent.get("minutes_apart"):
+        run("check_travel_feasibility", {k: ent[k] for k in ("from_city", "to_city", "minutes_apart")},
+            tool_check_travel)
+    return steps
+
+
 def tool_save_verdict(args):
     item = {"alert_id": str(args.get("alert_id", "")).upper(),
             "verdict": args.get("verdict"), "severity": args.get("severity"),
@@ -240,6 +290,11 @@ def run_agent(history, custom=None):
                 else:
                     out = func(args) if func else {"error": "Unknown tool"}
                 trace.append({"tool": tu["name"], "input": tu.get("input") or {}, "output": out})
+                if tu["name"] == "get_alert" and "error" not in out:
+                    extra_checks = enrich(out)
+                    trace.extend(extra_checks)
+                    out = {**out, "automatic_context_checks": [
+                        {"tool": c["tool"], "input": c["input"], "result": c["output"]} for c in extra_checks]}
                 if tu["name"] == "save_verdict":
                     verdict = {k: (tu.get("input") or {}).get(k) for k in ("alert_id", "verdict", "severity", "summary")}
                 results.append({"toolResult": {"toolUseId": tu["toolUseId"],

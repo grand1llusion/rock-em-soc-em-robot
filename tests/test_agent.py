@@ -81,7 +81,13 @@ class AgentTests(unittest.TestCase):
         body = json.loads(res["body"])
         self.assertEqual(res["statusCode"], 200)
         self.assertEqual(body["verdict"]["verdict"], "KO")
-        self.assertEqual([t["tool"] for t in body["trace"]], ["get_alert", "save_verdict"])
+        self.assertEqual([t["tool"] for t in body["trace"]],
+                         ["get_alert", "lookup_user", "check_ip", "check_travel_feasibility", "save_verdict"])
+        self.assertTrue(all(t.get("auto") for t in body["trace"][1:4]))
+        # the model receives the auto checks inside the get_alert tool result
+        fed_back = fake.calls[-1]["messages"][2]["content"][0]["toolResult"]["content"][0]["text"]  # result of get_alert
+        self.assertIn("automatic_context_checks", fed_back)
+        self.assertIn("physically_possible", fed_back)
         self.assertIn("KO", body["reply"])
         # the tool result was fed back to the model as a toolResult block
         last_user = fake.calls[1]["messages"][-1]
@@ -112,6 +118,30 @@ class AgentTests(unittest.TestCase):
         with mock.patch.object(lf, "bedrock", fake):
             body = json.loads(post([{"role": "user", "text": "hi"}])["body"])
         self.assertIn("call time", body["reply"])
+
+
+class EnrichTests(unittest.TestCase):
+    def names(self, alert_id):
+        return [(c["tool"], c["input"]) for c in lf.enrich(lf.data.ALERTS[alert_id])]
+
+    def test_scanner_alert_finds_approved_change(self):
+        steps = lf.enrich(lf.data.ALERTS["ALR-1005"])
+        self.assertEqual([s["tool"] for s in steps], ["lookup_asset"])
+        self.assertIn("CHG-2231", steps[0]["output"]["notes"])
+
+    def test_admin_alert_finds_change_ticket(self):
+        steps = lf.enrich(lf.data.ALERTS["ALR-1006"])
+        self.assertIn("CHG-2240", json.dumps(steps))
+
+    def test_public_ip_uses_threat_intel_and_bucket_uses_inventory(self):
+        self.assertIn(("check_ip", {"ip": "203.0.113.9"}), self.names("ALR-1003"))
+        self.assertIn(("lookup_asset", {"name_or_ip": "acme-marketing-assets"}), self.names("ALR-1004"))
+
+    def test_unknown_custom_user_is_reported_not_found(self):
+        alert = lf._clean_custom({"title": "t", "details": "d", "username": "zzz", "ip": "not-an-ip"})
+        steps = lf.enrich(alert)
+        self.assertIn("error", steps[0]["output"])
+        self.assertEqual(steps[1]["tool"], "check_ip")
 
 
 class CustomAlertTests(unittest.TestCase):
