@@ -73,7 +73,7 @@ class AgentTests(unittest.TestCase):
             tool_use("get_alert", {"alert_id": "ALR-1001"}, "a"),
             tool_use("save_verdict", {"alert_id": "ALR-1001", "verdict": "KO", "severity": "high",
                                       "summary": "Impossible travel"}, "b"),
-            text("Ding ding! VERDICT: KO"),
+            text("Ding ding! VERDICT: KO\nWHY I THINK SO: x"),
         ])
         with mock.patch.object(lf, "bedrock", fake), \
              mock.patch.object(lf, "_cases_table", side_effect=RuntimeError("offline")):
@@ -101,11 +101,35 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(body["verdict"]["severity"], "medium")
 
     def test_content_filter_gives_friendly_message(self):
-        fake = FakeBedrock([text("partial answer", stop="content_filtered")])
+        blocked = text("- The generated text has been blocked by our content filters.", stop="content_filtered")
+        fake = FakeBedrock([blocked, blocked, blocked])
         with mock.patch.object(lf, "bedrock", fake):
             body = json.loads(post([{"role": "user", "text": "hi"}])["body"])
         self.assertTrue(body["error"])
         self.assertIn("ref stopped", body["reply"])
+        self.assertNotIn("generated text has been blocked", body["reply"])
+        self.assertEqual(len(fake.calls), 3)  # one try plus two retries
+
+    def test_content_filter_retry_succeeds(self):
+        fake = FakeBedrock([text("x", stop="content_filtered"), text("VERDICT: DODGE\nWHY I THINK SO: ok")])
+        with mock.patch.object(lf, "bedrock", fake):
+            body = json.loads(post([{"role": "user", "text": "hi"}])["body"])
+        self.assertNotIn("error", body)
+        self.assertEqual(body["verdict"]["verdict"], "DODGE")
+        self.assertIn("calm", fake.calls[1]["system"][0]["text"])  # second try asks for a calmer tone
+
+    def test_short_signoff_after_verdict_is_expanded(self):
+        fake = FakeBedrock([
+            tool_use("save_verdict", {"alert_id": "ALR-1001", "verdict": "KO", "severity": "high", "summary": "s"}),
+            text("Knockout! We locked the account. Stay sharp!"),
+            text("VERDICT: KO SEVERITY: high\nWHY I THINK SO: facts\nWHAT TO DO NEXT: 1. I recommend a lock."),
+        ])
+        with mock.patch.object(lf, "bedrock", fake), \
+             mock.patch.object(lf, "_cases_table", side_effect=RuntimeError("offline")):
+            body = json.loads(post([{"role": "user", "text": "Triage ALR-1001"}])["body"])
+        self.assertIn("WHY I THINK SO", body["reply"])
+        self.assertNotIn("locked the account", body["reply"])
+        self.assertEqual(len(fake.calls), 3)
 
     def test_access_denied_gives_friendly_message(self):
         err = lf.ClientError({"Error": {"Code": "AccessDeniedException", "Message": "no"}}, "Converse")
@@ -114,7 +138,7 @@ class AgentTests(unittest.TestCase):
         self.assertIn("Bedrock", body["reply"])
 
     def test_runaway_tool_loop_is_capped(self):
-        fake = FakeBedrock([tool_use("list_alerts", {}, str(i)) for i in range(lf.MAX_STEPS)])
+        fake = FakeBedrock([tool_use("list_alerts", {}, str(i)) for i in range(lf.MAX_STEPS)])  # never finishes
         with mock.patch.object(lf, "bedrock", fake):
             body = json.loads(post([{"role": "user", "text": "hi"}])["body"])
         self.assertIn("call time", body["reply"])
