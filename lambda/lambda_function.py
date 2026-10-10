@@ -49,6 +49,7 @@ to check facts (lookup_user, lookup_asset, check_ip, check_travel_feasibility). 
 Never invent facts. If a tool returns nothing, say so.
 - When you have decided, call save_verdict exactly once. AFTER it returns, your final message \
 must be the FULL formatted answer below. A one-line sign-off is never enough.
+- Never print your private reasoning or any <thinking> tags.
 - You only RECOMMEND actions. You cannot lock accounts, reset passwords, isolate hosts or contact \
 anyone, so never say or imply that you did. Use wording like "I recommend the IT admin locks the account".
 - If the user asks for the alert queue, call list_alerts.
@@ -259,6 +260,7 @@ FRIENDLY = {
 }
 
 
+THINKING = re.compile(r"<thinking>.*?(?:</thinking>|$)", re.S | re.I)  # Nova sometimes prints its scratch work
 FILTER_NOTICE = re.compile(r"-?\s*The generated text has been blocked by our content filters\.?", re.I)
 CALM_NOTE = ("\n\nWrite in a calm, clinical, defensive tone. Describe risks factually, avoid dramatic or "
              "graphic wording, and focus on protective steps.")
@@ -320,7 +322,7 @@ def run_agent(history, custom=None):
                                                "content": [{"text": json.dumps(out)}]}})
             messages.append({"role": "user", "content": results})
             continue
-        text = "".join(b.get("text", "") for b in msg.get("content", [])).strip()
+        text = THINKING.sub("", "".join(b.get("text", "") for b in msg.get("content", []))).strip()
         if stop in ("content_filtered", "guardrail_intervened"):
             if filtered < 2:  # the filter is not deterministic: retry, calmer the second time
                 filtered += 1

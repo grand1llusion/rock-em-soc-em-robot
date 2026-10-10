@@ -110,6 +110,17 @@ class AgentTests(unittest.TestCase):
         self.assertNotIn("generated text has been blocked", body["reply"])
         self.assertEqual(len(fake.calls), 3)  # one try plus two retries
 
+    def test_thinking_tags_are_stripped(self):
+        fake = FakeBedrock([text("<thinking>secret scratch work</thinking>\n\nVERDICT: KO SEVERITY: high\nWHY I THINK SO: x")])
+        with mock.patch.object(lf, "bedrock", fake):
+            body = json.loads(post([{"role": "user", "text": "hi"}])["body"])
+        self.assertNotIn("thinking", body["reply"].lower())
+        self.assertTrue(body["reply"].startswith("VERDICT"))
+        self.assertEqual(body["verdict"]["verdict"], "KO")
+
+    def test_unclosed_thinking_tag_is_stripped(self):
+        self.assertEqual(lf.THINKING.sub("", "Hello <thinking>cut off mid-thou"), "Hello ")
+
     def test_content_filter_retry_succeeds(self):
         fake = FakeBedrock([text("x", stop="content_filtered"), text("VERDICT: DODGE\nWHY I THINK SO: ok")])
         with mock.patch.object(lf, "bedrock", fake):
