@@ -16,6 +16,7 @@
       --red: #ef5b54; --blue: #6ea2f0; --gold: #e0a64a; --ko: #ef5b54; --split: #e0a64a; --dodge: #5cc08e;
       --bubble-user: #2c5fb0; --bubble-bot: #26211d; }
   }
+  :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
     font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -114,7 +115,7 @@
       });
       m.appendChild(d);
     }
-    log.appendChild(m); scroll();
+    log.appendChild(m); m.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
   function addUser(text) { log.appendChild(el('div', 'msg user', text)); scroll(); }
 

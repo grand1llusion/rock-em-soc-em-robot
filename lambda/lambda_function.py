@@ -10,6 +10,7 @@ All alert data is AI-generated test data (see data.py).
 import json
 import math
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -192,6 +193,16 @@ FRIENDLY = {
 }
 
 
+def _verdict_from_text(text):
+    """Backup for when the model skips save_verdict: read 'VERDICT: KO  SEVERITY: high' from its answer."""
+    m = re.search(r"VERDICT:\s*(KO|SPLIT[ _]DECISION|DODGE)", text, re.I)
+    if not m:
+        return None
+    sev = re.search(r"SEVERITY:\s*(low|medium|high|critical)", text, re.I)
+    return {"alert_id": None, "verdict": m.group(1).upper().replace(" ", "_"),
+            "severity": sev.group(1).lower() if sev else None, "summary": None}
+
+
 def run_agent(history):
     messages = [{"role": m["role"], "content": [{"text": m["text"]}]} for m in history]
     trace, verdict = [], None
@@ -229,6 +240,7 @@ def run_agent(history):
         if stop in ("content_filtered", "guardrail_intervened"):
             return {"reply": (text + "\n\n" if text else "") + FRIENDLY["blocked"],
                     "trace": trace, "verdict": verdict, "error": True}
+        verdict = verdict or _verdict_from_text(text)
         return {"reply": text or FRIENDLY["generic"], "trace": trace, "verdict": verdict}
     return {"reply": FRIENDLY["steps"], "trace": trace, "verdict": verdict, "error": True}
 

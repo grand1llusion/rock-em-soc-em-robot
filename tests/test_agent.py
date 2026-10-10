@@ -87,6 +87,13 @@ class AgentTests(unittest.TestCase):
         last_user = fake.calls[1]["messages"][-1]
         self.assertIn("toolResult", last_user["content"][0])
 
+    def test_verdict_falls_back_to_answer_text(self):
+        fake = FakeBedrock([text("Ding!\nVERDICT: SPLIT DECISION   SEVERITY: Medium\nWHAT HAPPENED: ...")])
+        with mock.patch.object(lf, "bedrock", fake):
+            body = json.loads(post([{"role": "user", "text": "hi"}])["body"])
+        self.assertEqual(body["verdict"]["verdict"], "SPLIT_DECISION")
+        self.assertEqual(body["verdict"]["severity"], "medium")
+
     def test_content_filter_gives_friendly_message(self):
         fake = FakeBedrock([text("partial answer", stop="content_filtered")])
         with mock.patch.object(lf, "bedrock", fake):
