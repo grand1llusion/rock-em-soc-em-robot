@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GeocodeOnly",
+      "Effect": "Allow",
+      "Action": "geo-places:Geocode",
+      "Resource": "arn:aws:geo-places:us-east-1::provider/default"
+    }
+  ]
+}
