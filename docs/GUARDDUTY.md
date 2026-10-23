@@ -26,6 +26,12 @@ GuardDuty finding ──► EventBridge rule ──► Lambda (rock-em-soc-em-ro
    - Event source **AWS events**. Event pattern: AWS services > **GuardDuty** > **GuardDuty Finding**.
    - Target: AWS service > **Lambda function** > `rock-em-soc-em-robot`. Create.
 
+## Before and after on one deployment
+
+Set the Lambda environment variable `GUARDDUTY_TOOL` = `off` (Configuration > Environment variables)
+and the robot runs as it was before this tool: no `get_guardduty_findings`, no Live bouts panel, and
+EventBridge events are ignored. Delete the variable (or set it to `on`) to bring the tool back.
+
 ## Ring the bell (for the demo)
 
 Generate three specific sample findings from **CloudShell** (the `>_` icon in the console's top bar).

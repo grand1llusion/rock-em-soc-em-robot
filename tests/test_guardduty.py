@@ -203,5 +203,28 @@ class LiveBoutTests(unittest.TestCase):
         self.assertIn("skipped", lf.lambda_handler({"source": "aws.guardduty", "detail": {}}, None))
 
 
+class BeforeModeTests(unittest.TestCase):
+    """GUARDDUTY_TOOL=off: the robot as it was before the tool, for the before/after demo."""
+
+    def setUp(self):
+        import importlib
+        self.reload = importlib.reload
+        with mock.patch.dict(os.environ, {"GUARDDUTY_TOOL": "off"}):
+            self.reload(lf)
+
+    def tearDown(self):
+        self.reload(lf)  # back to the default (on) for every other test
+
+    def test_tool_panel_and_live_wire_are_off(self):
+        names = [t["toolSpec"]["name"] for t in lf.TOOL_CONFIG["tools"]]
+        self.assertNotIn("get_guardduty_findings", names)
+        self.assertNotIn("get_guardduty_findings", lf.TOOL_FUNCS)
+        self.assertNotIn("GuardDuty", lf.SYSTEM_PROMPT)
+        self.assertIn("skipped", lf.lambda_handler(copy.deepcopy(EVENT), None))
+        bouts = lf.lambda_handler({"requestContext": {"http": {"method": "GET"}}, "rawPath": "/bouts"}, None)
+        self.assertTrue(json.loads(bouts["body"])["off"])
+        self.assertIn("error", lf.tool_get_alert({"alert_id": "GD-" + FID}))
+
+
 if __name__ == "__main__":
     unittest.main()

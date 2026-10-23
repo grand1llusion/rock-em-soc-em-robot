@@ -121,9 +121,11 @@
   <aside class="card">
     <h2>Today's fight card</h2>
     <div id="alerts"><span class="typing">Loading the queue…</span></div>
-    <h2 class="live-h"><span class="live-dot" aria-hidden="true"></span>Live bouts · Amazon GuardDuty</h2>
-    <p class="live-note">Real findings from this AWS account, triaged automatically the moment GuardDuty raises them.</p>
-    <div id="bouts" aria-live="polite"><span class="typing">Listening for findings…</span></div>
+    <div id="live">
+      <h2 class="live-h"><span class="live-dot" aria-hidden="true"></span>Live bouts · Amazon GuardDuty</h2>
+      <p class="live-note">Real findings from this AWS account, triaged automatically the moment GuardDuty raises them.</p>
+      <div id="bouts" aria-live="polite"><span class="typing">Listening for findings…</span></div>
+    </div>
   </aside>
   <section class="card" id="chat">
     <h2>Ring</h2>
@@ -310,7 +312,7 @@
   }
   function loadBouts() {
     fetch('bouts', { headers: headers() }).then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(function (d) { renderBouts(d.bouts || []); })
+      .then(function (d) { document.getElementById('live').hidden = !!d.off; if (!d.off) renderBouts(d.bouts || []); })
       .catch(function () { document.getElementById('bouts').textContent = 'Live bouts unavailable right now.'; });
   }
   loadBouts(); setInterval(loadBouts, 15000);
