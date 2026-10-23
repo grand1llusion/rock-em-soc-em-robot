@@ -1,4 +1,4 @@
-"""Synthetic data for Rock 'Em SOC 'Em Robot.
+"""Synthetic data for SOC It To 'Em.
 
 EVERYTHING in this file is AI-generated test data for the fictional company
 "Acme Widgets Co." (about 250 employees). No real people, hosts, or customers.

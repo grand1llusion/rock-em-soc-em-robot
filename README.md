@@ -1,4 +1,4 @@
-# 🤖🥊 Rock 'Em SOC 'Em Robot
+# 🤖🥊 SOC It To 'Em
 
 An agentic **SOC analyst copilot** for a mid-size business, built for the
 AWS Builder Center *Build an Agent Weekend Challenge*.

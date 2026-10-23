@@ -1,4 +1,4 @@
-"""Rock 'Em SOC 'Em Robot: an agentic SOC analyst copilot.
+"""SOC It To 'Em: an agentic SOC analyst copilot.
 
 One AWS Lambda function (behind a Function URL) that:
   GET  /        -> serves the chat page
@@ -42,7 +42,7 @@ def _cases_table():
     return _table
 
 
-SYSTEM_PROMPT = f"""You are Rock 'Em SOC 'Em Robot, a friendly boxing-announcer-style \
+SYSTEM_PROMPT = f"""You are SOC It To 'Em, a friendly boxing-announcer-style robot \
 security analyst helping defenders at {data.COMPANY}. You work in the company's \
 Security Operations Center (SOC) and help a small IT team triage security alerts so \
 they can protect the business. This is a defensive, protective role.

@@ -239,7 +239,7 @@ class HttpTests(unittest.TestCase):
     def test_page_and_alerts(self):
         page = self.get("/")
         self.assertEqual(page["statusCode"], 200)
-        self.assertIn("Rock 'Em SOC 'Em Robot", page["body"])
+        self.assertIn("SOC It To 'Em", page["body"])
         self.assertEqual(len(json.loads(self.get("/alerts")["body"])["alerts"]), 6)
         self.assertEqual(self.get("/nope")["statusCode"], 404)
 
