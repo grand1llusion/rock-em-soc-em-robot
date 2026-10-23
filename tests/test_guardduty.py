@@ -133,6 +133,12 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(fake.calls[0][1]["MaxResults"], 10)  # capped
         self.assertEqual(fake.calls[0][1]["FindingCriteria"]["Criterion"]["service.archived"], {"Equals": ["false"]})
 
+    def test_short_list_carries_full_facts(self):
+        with use(FakeGuardDuty()):
+            out = gd.get_guardduty_findings({"max_results": 1})
+        self.assertEqual(out["findings"][0]["remote_ip"]["network_owner"], "Example Hosting Ltd")
+        self.assertNotIn("note", out)
+
     def test_get_one_finding_by_id_any_case(self):
         fake = FakeGuardDuty()
         with use(fake):

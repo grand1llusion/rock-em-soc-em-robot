@@ -34,6 +34,7 @@ TOOL = {
                               "max_results": {"type": "integer", "description": "How many to list (1-10)."}}},
 }
 
+FULL_LIST_LIMIT = 3  # list up to this many findings with full facts; longer lists are summaries
 _client = None
 _detector = os.environ.get("GUARDDUTY_DETECTOR_ID") or None
 
@@ -166,8 +167,11 @@ def get_guardduty_findings(args):
             return {"findings": [], "note": "No active GuardDuty findings right now."}
         found = _gd().get_findings(DetectorId=detector, FindingIds=ids).get("Findings", [])
         found.sort(key=lambda f: f.get("UpdatedAt", ""), reverse=True)
+        summaries = [finding_summary(f) for f in found]
+        if limit <= FULL_LIST_LIMIT:  # small lists carry the full facts: models judge from what they are given
+            return {"findings": summaries}
         brief = ("alert_id", "finding_type", "title", "severity", "last_seen", "times_seen", "sample_finding")
-        return {"findings": [{k: s[k] for k in brief if k in s} for s in map(finding_summary, found)],
+        return {"findings": [{k: s[k] for k in brief if k in s} for s in summaries],
                 "note": "Summaries only. Get a finding by finding_id for its full facts before judging it."}
     except ClientError as exc:
         return {"error": f"Amazon GuardDuty request failed ({exc.response['Error']['Code']})."}
