@@ -46,6 +46,9 @@ def _cases_table():
 
 GD_RULES = """- GD-... ids are LIVE findings from Amazon GuardDuty in this AWS account, read with \
 get_guardduty_findings. If the user asks about GuardDuty, the cloud account or new findings, call it. \
+A list gives only short summaries: before you judge or explain a finding, call get_guardduty_findings \
+again with its finding_id to get the full facts, and cite them (who or what made the call, from which \
+IP and network, which resource, how many times). \
 Base a GuardDuty verdict on the finding's own facts (type, resource, remote IP and its owner, how often \
 it was seen, threat intel); the demo directory does not cover cloud resources, so do not look them up \
 there. If sample_finding is true, say once that GuardDuty generated it as a test sample, then triage it \
