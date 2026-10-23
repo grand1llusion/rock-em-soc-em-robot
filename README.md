@@ -17,8 +17,9 @@ Every answer shows the verdict, severity, what happened (for a non-security mana
 should do what next, and the business impact. A "Corner-man's notes" panel shows every tool the
 agent called, so you can verify its reasoning.
 
-> **All data is AI-generated test data.** The company, people, hosts and alerts are fictional.
-> IPs come from documentation ranges. Used only to demonstrate the agent's functionality.
+> **The fight card is AI-generated test data.** The company, people, hosts and alerts are fictional,
+> and IPs come from documentation ranges. Live bouts are real Amazon GuardDuty findings from the
+> account the robot runs in (in the demo, GuardDuty's own sample findings), with account IDs redacted.
 
 ## 📡 New: live bouts from Amazon GuardDuty
 
