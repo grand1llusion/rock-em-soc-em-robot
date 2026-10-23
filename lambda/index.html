@@ -4,19 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rock 'Em SOC 'Em Robot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800;900&family=Barlow:wght@400;600&display=swap">
 <style>
+  /* Ringside Broadcast: TV sports graphics, slanted lower-thirds, a LIVE bug */
   :root {
-    --bg: #f6f3ee; --panel: #ffffff; --ink: #1d1b19; --muted: #6b655d; --line: #e0d9cf;
-    --red: #c8312b; --blue: #1f5fbf; --gold: #b7791f;
-    --ko: #c8312b; --split: #b7791f; --dodge: #2f855a;
-    --bubble-user: #1f5fbf; --bubble-user-ink: #fff; --bubble-bot: #fbf9f6;
+    --bg:#e9edf3; --panel:#ffffff; --ink:#0d1626; --muted:#566279; --line:#cfd6e2;
+    --red:#e10600; --blue:#0a2a66; --gold:#ffb000; --ko:#e10600; --split:#f08c00; --dodge:#0b8a4a;
+    --bubble-user:#0a2a66; --bubble-user-ink:#fff; --bubble-bot:#f6f8fb;
   }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #14110f; --panel: #1e1a17; --ink: #f1ece6; --muted: #a39a8f; --line: #3a332d;
-      --red: #ef5b54; --blue: #6ea2f0; --gold: #e0a64a; --ko: #ef5b54; --split: #e0a64a; --dodge: #5cc08e;
-      --bubble-user: #2c5fb0; --bubble-bot: #26211d; }
-  }
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
     font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -85,6 +83,29 @@
   @keyframes fresh { 0% { box-shadow: 0 0 0 3px var(--gold); } 100% { box-shadow: 0 0 0 0 transparent; } }
   @media (prefers-reduced-motion: reduce) { .live-dot, .bout.fresh { animation: none; } }
   .live-note { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+  /* broadcast theme */
+  body { font-family: Barlow, system-ui, sans-serif; }
+  header { background: #0a2a66; border: 0; color: #fff; padding: 22px 24px 10px; position: relative; }
+  header h1 { font: 900 40px/1 'Barlow Condensed', sans-serif; text-transform: uppercase; font-style: italic; letter-spacing: .02em;
+    background: #e10600; display: inline-block; padding: 4px 22px 4px 14px; clip-path: polygon(0 0,100% 0,94% 100%,0 100%); }
+  header p { color: #c8d3ea; font-weight: 600; margin-top: 6px; }
+  header::after { content: "● LIVE"; position: absolute; right: 24px; top: 26px; font: 800 14px 'Barlow Condensed'; letter-spacing: .12em; color: #fff; background: #e10600; padding: 4px 10px; }
+  .notice { background: #12367d; color: #c8d3ea; border: 0; }
+  main { margin-top: 10px; }
+  .card { border: 0; border-radius: 4px; box-shadow: 0 10px 30px rgba(13,22,38,.18); border-top: 5px solid #e10600; }
+  h2 { font: 800 18px 'Barlow Condensed', sans-serif; letter-spacing: .08em; color: #fff; background: #0a2a66; display: inline-block; padding: 3px 18px 3px 10px; clip-path: polygon(0 0,100% 0,92% 100%,0 100%); }
+  .alert-btn { border-radius: 2px; border: 0; border-left: 5px solid #0a2a66; background: #f3f5f9; }
+  .alert-btn:hover { border-left-color: #e10600; box-shadow: 0 4px 14px rgba(13,22,38,.15); background: #fff; }
+  .alert-btn b { font-family: 'Barlow Condensed'; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .msg { border-radius: 2px !important; }
+  .verdict { font: 900 26px/1 'Barlow Condensed', sans-serif; font-style: italic; text-transform: uppercase; border-radius: 0; padding: 6px 26px 6px 14px; clip-path: polygon(0 0,100% 0,94% 100%,0 100%); }
+  button.send { font: 800 18px 'Barlow Condensed'; text-transform: uppercase; letter-spacing: .08em; border-radius: 2px; background: #e10600; }
+  input[type=text] { border-radius: 2px; background: #fff; }
+  .live-dot { background: #e10600; }
+  @media (max-width: 640px) {
+    header h1 { font-size: 30px; } header::after { top: 10px; right: 12px; font-size: 12px; }
+    }
+  dialog h3 { font: 900 26px 'Barlow Condensed', sans-serif; font-style: italic; text-transform: uppercase; }
 </style>
 </head>
 <body>
