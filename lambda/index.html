@@ -30,6 +30,7 @@
   main { max-width: 1040px; margin: 0 auto; padding: 16px; display: grid; gap: 16px;
     grid-template-columns: 300px 1fr; }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  main > * { min-width: 0; }
   h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
   .alert-btn { width: 100%; text-align: left; background: transparent; color: inherit; cursor: pointer;
@@ -74,6 +75,16 @@
   .chip { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 99px; cursor: pointer;
     border: 1px solid var(--line); background: transparent; color: var(--muted); }
   .chip:hover { color: var(--ink); border-color: var(--ink); }
+  .live-h { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+  .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ko); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(200,49,43,.55); } 100% { box-shadow: 0 0 0 10px rgba(200,49,43,0); } }
+  .bout .tag { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .04em; color: #fff;
+    border-radius: 6px; padding: 1px 6px; margin-right: 6px; background: var(--muted); }
+  .bout .tag.KO { background: var(--ko); } .bout .tag.SPLIT_DECISION { background: var(--split); } .bout .tag.DODGE { background: var(--dodge); }
+  .bout.fresh { animation: fresh 2.4s ease-out 2; }
+  @keyframes fresh { 0% { box-shadow: 0 0 0 3px var(--gold); } 100% { box-shadow: 0 0 0 0 transparent; } }
+  @media (prefers-reduced-motion: reduce) { .live-dot, .bout.fresh { animation: none; } }
+  .live-note { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
 </style>
 </head>
 <body>
@@ -84,11 +95,14 @@
     <p>Your corner-man for security alerts: KO the real threats, dodge the noise.</p>
   </div>
 </header>
-<div class="notice">Demo data only: every alert, person and system here is AI-generated test data for a fictional company.</div>
+<div class="notice">The fight card is AI-generated test data for a fictional company. Live bouts are real Amazon GuardDuty findings from this AWS account (often GuardDuty's own test samples), with account IDs redacted.</div>
 <main>
   <aside class="card">
     <h2>Today's fight card</h2>
     <div id="alerts"><span class="typing">Loading the queue…</span></div>
+    <h2 class="live-h"><span class="live-dot" aria-hidden="true"></span>Live bouts · Amazon GuardDuty</h2>
+    <p class="live-note">Real findings from this AWS account, triaged automatically the moment GuardDuty raises them.</p>
+    <div id="bouts" aria-live="polite"><span class="typing">Listening for findings…</span></div>
   </aside>
   <section class="card" id="chat">
     <h2>Ring</h2>
@@ -241,6 +255,44 @@
       c.addEventListener('click', function () { ask(t); }); chips.appendChild(c);
     });
   }
+
+  var seen = null;
+  function when(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+  function showBout(b) {
+    var ask0 = 'Triage GuardDuty finding ' + b.alert_id;
+    addUser('📡 ' + (b.title || b.alert_id));
+    addBot('📡 Live bout: triaged automatically at ' + when(b.saved_at) + ', before anyone opened it.\n\n' + (b.answer || ''),
+      { verdict: { verdict: b.verdict, severity: b.severity }, trace: b.trace });
+    history = [{ role: 'user', text: ask0 }, { role: 'assistant', text: b.answer || '' }];  // follow-ups work
+    customAlert = null;
+  }
+  function renderBouts(list) {
+    var box = document.getElementById('bouts'); box.textContent = '';
+    if (!list.length) {
+      box.appendChild(el('p', 'live-note', 'No live bouts yet. When Amazon GuardDuty raises a finding, I triage it here on my own.'));
+    }
+    list.forEach(function (b) {
+      var btn = el('button', 'alert-btn bout' + (seen && !seen[b.alert_id] ? ' fresh' : '')); btn.type = 'button';
+      var top = el('b', '', (b.gd_severity ? 'GuardDuty ' + b.gd_severity : 'GuardDuty') + ' · ' + when(b.saved_at) + (b.sample ? ' · sample' : ''));
+      var line = el('span');
+      line.appendChild(el('span', 'tag ' + (b.verdict || ''), b.verdict ? b.verdict.replace('_', ' ') : 'NO CALL'));
+      line.appendChild(document.createTextNode(b.title || b.finding_type || b.alert_id));
+      btn.appendChild(top); btn.appendChild(line);
+      btn.addEventListener('click', function () { showBout(b); });
+      box.appendChild(btn);
+    });
+    var check = el('button', 'alert-btn'); check.type = 'button';
+    check.appendChild(el('span', '', '📡 Ask me to check GuardDuty now'));
+    check.addEventListener('click', function () { ask('Check Amazon GuardDuty for the latest findings and tell me which one to look at first, and why. Keep it brief.'); });
+    box.appendChild(check);
+    seen = {}; list.forEach(function (b) { seen[b.alert_id] = true; });
+  }
+  function loadBouts() {
+    fetch('bouts', { headers: headers() }).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) { renderBouts(d.bouts || []); })
+      .catch(function () { document.getElementById('bouts').textContent = 'Live bouts unavailable right now.'; });
+  }
+  loadBouts(); setInterval(loadBouts, 15000);
 
   welcome();
   fetch('alerts', { headers: headers() }).then(function (r) {

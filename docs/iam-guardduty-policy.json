@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadGuardDutyFindings",
+      "Effect": "Allow",
+      "Action": ["guardduty:ListDetectors", "guardduty:ListFindings", "guardduty:GetFindings"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CaseLogForLiveBouts",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Scan"],
+      "Resource": "arn:aws:dynamodb:us-east-1:*:table/rock-em-cases"
+    }
+  ]
+}

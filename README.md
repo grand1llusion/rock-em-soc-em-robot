@@ -20,6 +20,16 @@ agent called, so you can verify its reasoning.
 > **All data is AI-generated test data.** The company, people, hosts and alerts are fictional.
 > IPs come from documentation ranges. Used only to demonstrate the agent's functionality.
 
+## 📡 New: live bouts from Amazon GuardDuty
+
+The robot used to spar only with six made-up alerts. Its new tool, **`get_guardduty_findings`**
+([`lambda/guardduty_tool.py`](lambda/guardduty_tool.py)), reads real findings from **Amazon GuardDuty**,
+and an **Amazon EventBridge** rule wakes it for every new one. It triages each finding on its own,
+with nobody at the keyboard, saves the KO / SPLIT DECISION / DODGE call to the case log, and shows it
+under **Live bouts**. Account IDs and access keys are redacted before the model or the page sees them.
+Set-up and a reusable-tool guide: [docs/GUARDDUTY.md](docs/GUARDDUTY.md). The version before this tool
+is commit [`613984e`](https://github.com/grand1llusion/rock-em-soc-em-robot/tree/613984e).
+
 ## Screenshots
 
 *All alerts, people and systems shown are AI-generated test data.*

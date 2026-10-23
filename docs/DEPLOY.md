@@ -11,4 +11,6 @@
      (default `us.amazon.nova-lite-v1:0`). Optional: `ACCESS_CODE` to require a passcode.
    - Configuration > Function URL > Create: auth type `NONE`, save. (Open the URL to use the app.)
    - Optional cost guard: Configuration > Concurrency > reserve 2.
-4. **AWS Budgets**: zero-spend or small monthly budget with an email alert.
+4. **Live bouts (Amazon GuardDuty)**: see [GUARDDUTY.md](GUARDDUTY.md) for GuardDuty, one inline
+   policy and the EventBridge rule.
+5. **AWS Budgets**: zero-spend or small monthly budget with an email alert.

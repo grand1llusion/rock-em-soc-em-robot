@@ -8,7 +8,7 @@ OUT = os.path.join(ROOT, "dist", "rock-em-soc-em-robot.zip")
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
-    for name in ("lambda_function.py", "data.py", "index.html"):
+    for name in ("lambda_function.py", "guardduty_tool.py", "data.py", "index.html"):
         info = zipfile.ZipInfo(name, date_time=(2026, 10, 10, 0, 0, 0))  # fixed date = reproducible zip
         info.external_attr = 0o644 << 16
         with open(os.path.join(SRC, name), "rb") as f:
