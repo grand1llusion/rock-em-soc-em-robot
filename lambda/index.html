@@ -30,7 +30,6 @@
   main { max-width: 1040px; margin: 0 auto; padding: 16px; display: grid; gap: 16px;
     grid-template-columns: 300px 1fr; }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
-  main > * { min-width: 0; }
   h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
   .alert-btn { width: 100%; text-align: left; background: transparent; color: inherit; cursor: pointer;
@@ -67,8 +66,6 @@
     color: var(--ink); background: var(--bg); border: 1px solid var(--line); }
   dialog input::placeholder, dialog textarea::placeholder { color: var(--muted); opacity: .75; font-style: italic; }
   dialog .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  dialog .row3 { grid-template-columns: 1fr 1fr 7.5em; }
-  @media (max-width: 520px) { dialog .row3 { grid-template-columns: 1fr; } }
   dialog .actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 14px; }
   dialog .link { background: none; border: 0; color: var(--blue); cursor: pointer; font: inherit; margin-right: auto; padding: 0; }
   dialog .cancel { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line);
@@ -108,8 +105,7 @@
   <form method="dialog" id="customForm">
     <h3>✍️ Build your own alert</h3>
     <p class="hint">Describe something suspicious and I'll triage it. Please use made-up data only: no real names, passwords or company info.
-      I know the demo users (jsmith, mgarcia, rpatel, dthompson, svc-backup) and a few IPs (198.51.100.77, 203.0.113.9, 203.0.113.50); anything else I'll flag as unverified.
-      Sign-in places can be anywhere in the world: I look them up with Amazon Location Service.</p>
+      I know the demo users (jsmith, mgarcia, rpatel, dthompson, svc-backup) and a few IPs (198.51.100.77, 203.0.113.9, 203.0.113.50); anything else I'll flag as unverified.</p>
     <label for="c-title">Alert title *</label>
     <input id="c-title" maxlength="120" required placeholder="e.g. Employee signed in from two countries within minutes">
     <div class="row">
@@ -121,11 +117,6 @@
     <div class="row">
       <div><label for="c-user">Username</label><input id="c-user" maxlength="40" placeholder="e.g. jsmith"></div>
       <div><label for="c-ip">IP address</label><input id="c-ip" maxlength="45" placeholder="e.g. 203.0.113.9"></div>
-    </div>
-    <div class="row row3">
-      <div><label for="c-from">Signed in from</label><input id="c-from" maxlength="80" placeholder="e.g. Boise, Idaho"></div>
-      <div><label for="c-to">…then from</label><input id="c-to" maxlength="80" placeholder="e.g. Kyiv, Ukraine"></div>
-      <div><label for="c-min">Minutes apart</label><input id="c-min" maxlength="10" inputmode="decimal" placeholder="e.g. 25"></div>
     </div>
     <label for="c-details">What happened? *</label>
     <textarea id="c-details" rows="5" maxlength="1200" required
@@ -227,17 +218,13 @@
     field('c-time').value = 'Mon 14:05 CT';
     field('c-user').value = 'mgarcia';
     field('c-ip').value = '198.51.100.77';
-    field('c-from').value = 'Boise, Idaho';
-    field('c-to').value = 'Kyiv, Ukraine';
-    field('c-min').value = '25';
-    field('c-details').value = 'mgarcia signed in from Boise, Idaho at 14:05 CT, then from Kyiv, Ukraine at 14:30 CT using a new Windows device. The second sign-in approved an MFA push within 30 seconds.';
+    field('c-details').value = 'mgarcia signed in from Austin at 14:05 CT, then from Lagos, Nigeria at 14:20 CT using a new Windows device. The second sign-in approved an MFA push within 30 seconds.';
   });
   field('customForm').addEventListener('submit', function (e) {
     e.preventDefault();
     if (busy) return;
     customAlert = { title: field('c-title').value, source: field('c-source').value, time: field('c-time').value,
-      username: field('c-user').value, ip: field('c-ip').value, details: field('c-details').value,
-      from_city: field('c-from').value, to_city: field('c-to').value, minutes_apart: field('c-min').value };
+      username: field('c-user').value, ip: field('c-ip').value, details: field('c-details').value };
     dlg.close();
     ask('Triage my custom alert ALR-CUSTOM: ' + customAlert.title);
   });

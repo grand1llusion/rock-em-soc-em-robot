@@ -36,30 +36,6 @@ class FakeBedrock:
         return r
 
 
-class FakeGeo:
-    """Stands in for Amazon Location Service (geo-places). Unknown places return no results."""
-    PLACES = {"kyiv, ukraine": ([30.5234, 50.4501], "Kyiv, Ukraine", "Ukraine", 1.0),
-              "boise, idaho": ([-116.2023, 43.615], "Boise, ID, United States", "United States", 1.0),
-              "springfield": ([-89.65, 39.8], "Springfield, IL, United States", "United States", 0.6)}
-
-    def __init__(self, error=None):
-        self.error, self.queries = error, []
-
-    def geocode(self, QueryText, MaxResults):
-        self.queries.append(QueryText)
-        if self.error:
-            raise self.error
-        hit = self.PLACES.get(QueryText.lower())
-        if not hit:
-            return {"ResultItems": []}
-        pos, label, country, score = hit
-        return {"ResultItems": [{"Position": pos, "Title": label, "MatchScores": {"Overall": score},
-                                 "Address": {"Label": label, "Country": {"Name": country}}}]}
-
-
-lf._geo = FakeGeo()  # no test ever reaches the real service
-
-
 def post(history):
     event = {"requestContext": {"http": {"method": "POST"}}, "rawPath": "/chat",
              "body": json.dumps({"messages": history})}
@@ -75,37 +51,6 @@ class ToolTests(unittest.TestCase):
     def test_possible_travel(self):
         out = lf.tool_check_travel({"from_city": "Chicago", "to_city": "New York", "minutes_apart": 600})
         self.assertTrue(out["physically_possible"])
-
-    def test_any_city_via_location_service(self):
-        geo = FakeGeo()
-        with mock.patch.object(lf, "_geo", geo):
-            out = lf.tool_check_travel({"from_city": "Boise, Idaho", "to_city": "Kyiv, Ukraine", "minutes_apart": 25})
-        self.assertFalse(out["physically_possible"])
-        self.assertGreater(out["distance_km"], 9000)
-        self.assertEqual(out["to_place"]["matched"], "Kyiv, Ukraine")
-        self.assertEqual(out["to_place"]["source"], "Amazon Location Service")
-        self.assertEqual(geo.queries, ["Boise, Idaho", "Kyiv, Ukraine"])
-
-    def test_built_in_cities_skip_the_lookup(self):
-        geo = FakeGeo()
-        with mock.patch.object(lf, "_geo", geo):
-            out = lf.tool_check_travel({"from_city": "Chicago", "to_city": "Kyiv, Ukraine", "minutes_apart": 60})
-        self.assertEqual(out["from_place"]["source"], "built-in city table")
-        self.assertEqual(geo.queries, ["Kyiv, Ukraine"])
-
-    def test_locate_place(self):
-        out = lf.tool_locate_place({"place": "Kyiv, Ukraine"})
-        self.assertEqual((out["country"], out["lat"], out["lon"]), ("Ukraine", 50.4501, 30.5234))
-        self.assertNotIn("note", out)
-        self.assertIn("Loose match", lf.tool_locate_place({"place": "Springfield"})["note"])
-        self.assertIn("error", lf.tool_locate_place({"place": ""}))
-
-    def test_location_service_failure_is_reported_not_guessed(self):
-        boom = lf.ClientError({"Error": {"Code": "AccessDeniedException", "Message": "no"}}, "Geocode")
-        with mock.patch.object(lf, "_geo", FakeGeo(error=boom)):
-            out = lf.tool_check_travel({"from_city": "Chicago", "to_city": "Kyiv, Ukraine", "minutes_apart": 5})
-        self.assertIn("error", out)
-        self.assertIn("AccessDenied", out["to_place"]["error"])
 
     def test_unknown_city_and_alert(self):
         self.assertIn("error", lf.tool_check_travel({"from_city": "Atlantis", "to_city": "Lagos", "minutes_apart": 5}))
@@ -276,14 +221,6 @@ class CustomAlertTests(unittest.TestCase):
         with mock.patch.object(lf, "bedrock", fake):
             body = json.loads(lf.lambda_handler(event, None)["body"])
         self.assertEqual(body["trace"][0]["output"]["title"], "Odd login")
-
-    def test_custom_sign_in_places_run_the_travel_check(self):
-        alert = lf._clean_custom(dict(self.CUSTOM, from_city="Boise, Idaho", to_city="Kyiv, Ukraine", minutes_apart="25"))
-        self.assertEqual(alert["entities"]["minutes_apart"], 25.0)
-        travel = [s for s in lf.enrich(alert) if s["tool"] == "check_travel_feasibility"]
-        self.assertFalse(travel[0]["output"]["physically_possible"])
-        no_minutes = lf._clean_custom(dict(self.CUSTOM, from_city="Boise", to_city="Kyiv", minutes_apart="soon"))
-        self.assertNotIn("from_city", no_minutes["entities"])
 
     def test_invalid_custom_alert_is_rejected(self):
         event = {"requestContext": {"http": {"method": "POST"}}, "rawPath": "/chat",

@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import ClientError
 
 import data
 
@@ -29,7 +29,6 @@ MAX_MESSAGE_CHARS = 1500
 
 bedrock = boto3.client("bedrock-runtime")
 _table = None
-_geo = None
 
 
 def _cases_table():
@@ -39,13 +38,6 @@ def _cases_table():
     return _table
 
 
-def _geo_client():
-    global _geo
-    if _geo is None:
-        _geo = boto3.client("geo-places")
-    return _geo
-
-
 SYSTEM_PROMPT = f"""You are Rock 'Em SOC 'Em Robot, a friendly boxing-announcer-style \
 security analyst helping defenders at {data.COMPANY}. You work in the company's \
 Security Operations Center (SOC) and help a small IT team triage security alerts so \
@@ -53,12 +45,8 @@ they can protect the business. This is a defensive, protective role.
 
 HOW YOU WORK
 - When asked about an alert, ALWAYS call get_alert first, then use the other tools \
-to check facts (lookup_user, lookup_asset, check_ip, check_travel_feasibility, locate_place). \
+to check facts (lookup_user, lookup_asset, check_ip, check_travel_feasibility). \
 Never invent facts. If a tool returns nothing, say so.
-- If an alert mentions sign-ins or activity from two places, call check_travel_feasibility. It \
-works for any city, airport or address. Use locate_place to find where any other place is. \
-Always say which place a lookup matched (for example 'Paris, France'), so a human can catch a \
-wrong match.
 - When you have decided, call save_verdict exactly once. AFTER it returns, your final message \
 must be the FULL formatted answer below. A one-line sign-off is never enough.
 - Only describe an alert that appears in a tool result in THIS conversation. Never reuse names, \
@@ -129,16 +117,12 @@ TOOLS = [
      "description": "Check the reputation of an external IP address with the threat intel feed.",
      "schema": {"type": "object", "properties": {"ip": {"type": "string"}}, "required": ["ip"]}},
     {"name": "check_travel_feasibility",
-     "description": "Given two places (any city, airport or address) and the minutes between two "
-                    "sign-ins, compute whether a person could physically have travelled between them.",
+     "description": "Given two cities and the minutes between two sign-ins, compute whether a "
+                    "person could physically have travelled between them.",
      "schema": {"type": "object",
                 "properties": {"from_city": {"type": "string"}, "to_city": {"type": "string"},
                                "minutes_apart": {"type": "number"}},
                 "required": ["from_city", "to_city", "minutes_apart"]}},
-    {"name": "locate_place",
-     "description": "Find where any city, airport or street address is with Amazon Location Service: "
-                    "the matched place, its country and its coordinates.",
-     "schema": {"type": "object", "properties": {"place": {"type": "string"}}, "required": ["place"]}},
     {"name": "save_verdict",
      "description": "Record your final verdict for an alert in the case log. Call once per alert.",
      "schema": {"type": "object",
@@ -188,55 +172,18 @@ def tool_check_ip(args):
     return data.IP_REPUTATION.get(ip) or {"reputation": "unknown", "detail": "No reports in the threat intel feed."}
 
 
-def _geocode(place):
-    """Look one place up with Amazon Location Service. Returns ((lat, lon) or None, details)."""
-    place = str(place or "").strip()[:120]
-    if not place:
-        return None, {"error": "No place given."}
-    try:
-        items = _geo_client().geocode(QueryText=place, MaxResults=1).get("ResultItems", [])
-    except (BotoCoreError, ClientError) as exc:
-        code = exc.response["Error"]["Code"] if isinstance(exc, ClientError) else exc.__class__.__name__
-        return None, {"error": f"Amazon Location Service lookup failed ({code})."}
-    if not items:
-        return None, {"error": f"Amazon Location Service found no place matching '{place}'."}
-    item = items[0]
-    lon, lat = item["Position"]  # Location Service returns [longitude, latitude]
-    address = item.get("Address", {})
-    score = item.get("MatchScores", {}).get("Overall")
-    info = {"query": place, "matched": address.get("Label") or item.get("Title"),
-            "country": address.get("Country", {}).get("Name"), "lat": round(lat, 4), "lon": round(lon, 4),
-            "match_score": round(score, 2) if score is not None else None,
-            "source": "Amazon Location Service"}
-    if score is not None and score < 0.8:
-        info["note"] = "Loose match: check this is the place the alert meant."
-    return (lat, lon), info
-
-
-def tool_locate_place(args):
-    return _geocode(args.get("place"))[1]
-
-
-def _place(name):
-    """Coordinates for a place: the built-in city table first, then Amazon Location Service."""
-    known = data.CITIES.get(str(name or "").strip().lower())
-    if known:
-        return known, {"query": name, "source": "built-in city table"}
-    return _geocode(name)
-
-
 def tool_check_travel(args):
+    a = data.CITIES.get(str(args.get("from_city", "")).lower())
+    b = data.CITIES.get(str(args.get("to_city", "")).lower())
+    if not a or not b:
+        return {"error": "City not in my small city table. Known: " + ", ".join(sorted(data.CITIES))}
     try:
         minutes = float(args.get("minutes_apart"))
     except (TypeError, ValueError):
         return {"error": "minutes_apart must be a number."}
-    a, a_info = _place(args.get("from_city"))
-    b, b_info = _place(args.get("to_city"))
-    if not a or not b:
-        return {"error": "Could not place both locations.", "from_place": a_info, "to_place": b_info}
     km = _haversine_km(a, b)
     speed = km / max(minutes, 1) * 60
-    return {"from_place": a_info, "to_place": b_info, "distance_km": round(km), "minutes_apart": minutes,
+    return {"distance_km": round(km), "minutes_apart": minutes,
             "required_speed_kmh": round(speed),
             "physically_possible": speed < 900,
             "note": "Commercial jets cruise around 900 km/h, and door-to-door flights take hours. "
@@ -302,8 +249,7 @@ def tool_save_verdict(args):
 TOOL_FUNCS = {
     "list_alerts": tool_list_alerts, "get_alert": tool_get_alert, "lookup_user": tool_lookup_user,
     "lookup_asset": tool_lookup_asset, "check_ip": tool_check_ip,
-    "check_travel_feasibility": tool_check_travel, "locate_place": tool_locate_place,
-    "save_verdict": tool_save_verdict,
+    "check_travel_feasibility": tool_check_travel, "save_verdict": tool_save_verdict,
 }
 
 
@@ -447,8 +393,7 @@ def _clean_history(raw):
     return msgs
 
 
-CUSTOM_LIMITS = {"title": 120, "source": 80, "time": 60, "username": 40, "ip": 45, "details": 1200,
-                 "from_city": 80, "to_city": 80, "minutes_apart": 10}
+CUSTOM_LIMITS = {"title": 120, "source": 80, "time": 60, "username": 40, "ip": 45, "details": 1200}
 
 
 def _clean_custom(raw):
@@ -463,12 +408,6 @@ def _clean_custom(raw):
         entities["user"] = f["username"].lower()
     if f["ip"]:
         entities["ip"] = f["ip"]
-    try:
-        minutes = float(f["minutes_apart"])
-    except ValueError:
-        minutes = 0
-    if f["from_city"] and f["to_city"] and minutes > 0:
-        entities.update(from_city=f["from_city"], to_city=f["to_city"], minutes_apart=minutes)
     return {"id": "ALR-CUSTOM", "title": f["title"], "source": f["source"] or "Not specified",
             "time": f["time"] or "Not specified", "details": f["details"], "entities": entities}
 

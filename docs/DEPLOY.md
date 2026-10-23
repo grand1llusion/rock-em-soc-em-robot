@@ -11,8 +11,4 @@
      (default `us.amazon.nova-lite-v1:0`). Optional: `ACCESS_CODE` to require a passcode.
    - Configuration > Function URL > Create: auth type `NONE`, save. (Open the URL to use the app.)
    - Optional cost guard: Configuration > Concurrency > reserve 2.
-4. **Amazon Location Service** (the `locate_place` tool): no resource to create. Add an inline policy to
-   the role from `docs/iam-location-policy.json`: it allows only `geo-places:Geocode` in us-east-1.
-   Without it the robot still works, but places outside its built-in city table come back
-   "lookup failed (AccessDeniedException)".
-5. **AWS Budgets**: zero-spend or small monthly budget with an email alert.
+4. **AWS Budgets**: zero-spend or small monthly budget with an email alert.
