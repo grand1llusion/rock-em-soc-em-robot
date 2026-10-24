@@ -4,8 +4,9 @@
 One new tool, an Amazon GuardDuty reader wired up with Amazon EventBridge, now lets it triage real
 findings from my AWS account the moment they happen, with nobody at the keyboard.
 
-**Demo video:** [FILL YouTube link]  
-**Code:** https://github.com/grand1llusion/rock-em-soc-em-robot
+**Demo video:** https://www.youtube.com/watch?v=u9MZofCVn0s  
+**Code:** https://github.com/grand1llusion/rock-em-soc-em-robot  
+**Notebook:** https://github.com/grand1llusion/rock-em-soc-em-robot/blob/main/notebooks/guardduty_tool_quickstart.ipynb
 
 ## The agent I started with
 
@@ -85,7 +86,8 @@ call, saves it to the case log, and the page shows it under a new **Live bouts**
 - `finding_summary(finding)`: works on API findings and on EventBridge event `detail`, keeps the facts
   a model needs, and redacts account IDs and access keys.
 
-The repo also has a read-only IAM policy, the EventBridge setup steps, and offline tests with a fake
+A [quickstart notebook](https://github.com/grand1llusion/rock-em-soc-em-robot/blob/main/notebooks/guardduty_tool_quickstart.ipynb)
+walks through the tool step by step and runs without AWS. The repo also has a read-only IAM policy, the EventBridge setup steps, and offline tests with a fake
 GuardDuty, so you can try it without an AWS account
 ([docs/GUARDDUTY.md](https://github.com/grand1llusion/rock-em-soc-em-robot/blob/main/docs/GUARDDUTY.md)).
 
